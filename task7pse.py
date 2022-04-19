@@ -51,13 +51,17 @@ choices = ['N', 'Y']
 choicesval = [None, None]
 df['SIMPL'] = np.select(conditions, choices, default=None)
 df['VAL'] = np.select(conditions, choicesval, default=df['VAL'])
-#df['VAL'] = df['VAL'].astype(float)
-df['VAL'] = df['VAL'].astype(float).replace(np.nan, None)
+df['VAL'] = df['VAL'].astype(float)
 df['PAT_CODE'] = df['PAT_CODE'].astype(int)
-# https://stackoverflow.com/questions/41566950/how-to-make-df-to-sql-create-varchar2-object
-dtyp = {c:types.VARCHAR(df[c].str.len().max()) for c in df.columns[df.dtypes == 'object'].tolist()}
 
-print(df)
+# set Nan to None for insert Null into database
+df = df.astype(object)
+df = df.where(pd.notnull(df), None)
+
+# https://stackoverflow.com/questions/41566950/how-to-make-df-to-sql-create-varchar2-object
+#dtyp = {c:types.VARCHAR(df[c].str.len().max()) for c in df.columns[df.dtypes == 'object'].tolist()}
+
+#print(df)
 print(df.values.tolist())
 
 # delete data if exist
