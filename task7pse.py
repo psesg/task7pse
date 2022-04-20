@@ -22,10 +22,14 @@ print("Common info:\nOS name:\t{}\nplatform:\t{}\nversion:\t{}\nrelease:\t{}\nPy
 if plat == "Linux":
     jarFile = '/home/demipt2/ojdbc8.jar'
     xlsFile = '/home/demipt2/medicine.xlsx'
+    # file in my PANA dir
+    task7file = '/home/demipt2/pana/pana_task7_out.xlsx'
     print("Unix-specific info: {}".format(platform.linux_distribution()))
 if plat == "Windows":
     jarFile = r'C:\sqldeveloper\jdbc\lib\ojdbc8.jar'
+    # file in current dir
     xlsFile = 'medicine.xlsx'
+    task7file = 'pana_task7_out.xlsx'
 dirver = 'oracle.jdbc.driver.OracleDriver'
 addr_ = 'de-oracle.chronosavant.ru' + ':' + '1521' + '/' + 'deoracle'
 url = 'jdbc:oracle:thin:@' + addr_
@@ -35,6 +39,11 @@ DBPwd = 'peregrintook'
 conn = jaydebeapi.connect(dirver, url, [DBUser, DBPwd], jarFile)
 conn.jconn.setAutoCommit(False)
 curs = conn.cursor()
+
+# make query for task 7.1
+# Вы забираете данные с листа 'hard'. Нужно отыскать пациентов, у которых не
+# в норме два и более анализов. Вывести телефон, имя, название анализа и
+# заключение 'Повышен', 'Понижен' или 'Положительный'. Сохранить в xlsx.
 
 # read from XLS
 df = pd.read_excel(xlsFile, sheet_name ='hard', header=0, index_col = None)
@@ -62,11 +71,12 @@ df = df.where(pd.notnull(df), None)
 #dtyp = {c:types.VARCHAR(df[c].str.len().max()) for c in df.columns[df.dtypes == 'object'].tolist()}
 
 #print(df)
-print(df.values.tolist())
+#print(df.values.tolist())
 
+# put data from xls to DEMIPT2.PANA_XLS table
 # delete data if exist
 sql_str = "delete from DEMIPT2.PANA_XLS"
-print("\ndeleting from  DEMIPT2.PANA_XLS...\n'{}'".format(sql_str))
+print("\ndeleting from  DEMIPT2.PANA_XLS...")
 try:
     curs.execute(sql_str)
 except Exception as e:
@@ -78,7 +88,7 @@ finally:
 
 # insert data from DataFrame
 sql_str = "insert into DEMIPT2.PANA_XLS (PAT_CODE, AN_CODE, VAL, SIMPL) values (?,?,?,?)"
-print("\ninserting to  DEMIPT2.PANA_XLS...\n'{}'".format(sql_str))
+print("\ninserting to  DEMIPT2.PANA_XLS...")
 try:
     curs.executemany(sql_str, df.values.tolist())
 except Exception as e:
@@ -86,12 +96,9 @@ except Exception as e:
 else:
     conn.commit()
 finally:
-    print("inserted {} rows".format(curs.rowcount))
+    print("inserted {} rows".format(int(-curs.rowcount/2)))
 
-# make query for task 7.1
-# Вы забираете данные с листа 'hard'. Нужно отыскать пациентов, у которых не
-# в норме два и более анализов. Вывести телефон, имя, название анализа и
-# заключение 'Повышен', 'Понижен' или 'Положительный'. Сохранить в xlsx.
+
 
 sql_str = """
 SELECT * FROM
@@ -173,14 +180,91 @@ WHERE tr.id in (
 )
 WHERE res <> 'Норма'
 """
-print("\ngetting from  database...\n")
+print("\ngetting data by query...")
 try:
     curs.execute(sql_str)
 except Exception as e:
     print("Error getting data:{}".format(e))
 else:
     df = pd.DataFrame(curs.fetchall(), columns=[x[0] for x in curs.description])
+    print("Show dataframe:\n")
     print(df)
+    print("\nwrite dataframe to {}...".format(task7file))
+    df.to_excel(task7file, sheet_name='task7', header=True, index=False)
+
+
+# insert data from query (task7 additional)
+# delete data if exist
+sql_str = "delete from DEMIPT2.PANA_MEDAN_DECODE_RES"
+print("\ndeleting from  DEMIPT2.PANA_MEDAN_DECODE_RES...")
+try:
+    curs.execute(sql_str)
+except Exception as e:
+    print("Error deleting:{}".format(e))
+else:
+    conn.commit()
+finally:
+    print("deleted {} rows".format(curs.rowcount))
+
+sql_str = """
+INSERT INTO DEMIPT2.PANA_MEDAN_DECODE_RES
+SELECT 
+    res.id,
+    res.phone,
+    res.client,
+    res.an_code,
+    res.an_name,
+    res.res
+FROM
+(
+SELECT
+    tr.id,
+    tr.phone,
+    tr.name client,
+    tr.an_code,
+    a.name an_name,
+    case
+        when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 'Положительный'
+        when tr.val is not null and  tr.val < a.min_value then 'Понижен' 
+        when tr.val is not null and  tr.val > a.max_value then 'Повышен' 
+        else 'Норма'
+    end  as res,
+    
+    case
+        when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 1
+        when tr.val is not null and  tr.val < a.min_value then 1 
+        when tr.val is not null and  tr.val > a.max_value then 1 
+        else 0
+    end  as kol
+    
+FROM
+    (SELECT 
+        t.id,
+        t.name,
+        t.phone,
+        r.pat_code,
+        r.an_code,
+        r.val,
+        r.simpl
+    FROM DE.MED_NAMES t
+    LEFT JOIN DEMIPT2.PANA_XLS r
+    ON t.id = r.pat_code
+    ORDER BY t.id
+    ) tr
+    LEFT JOIN DE.MED_AN_NAME a
+    ON tr.an_code = a.code
+ORDER BY client
+) res
+"""
+print("\ninserting to  PANA_MEDAN_DECODE_RES...")
+try:
+    curs.execute(sql_str)
+except Exception as e:
+    print("Error insertion:{}".format(e))
+else:
+    conn.commit()
+finally:
+    print("inserted {} rows".format(curs.rowcount))
 
 
 curs.close()
