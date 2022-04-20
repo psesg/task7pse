@@ -46,8 +46,9 @@ curs = conn.cursor()
 # заключение 'Повышен', 'Понижен' или 'Положительный'. Сохранить в xlsx.
 
 # read from XLS
+print("\nread data from XLS file: {}...".format(xlsFile))
 df = pd.read_excel(xlsFile, sheet_name ='hard', header=0, index_col = None)
-
+print("making dataframe for put into database and show df.head(5)...")
 # rename fields
 df.rename({'Код пациента': 'PAT_CODE', 'Анализ': 'AN_CODE', 'Значение': 'VAL'}, axis=1, inplace=True)
 
@@ -70,13 +71,13 @@ df = df.where(pd.notnull(df), None)
 # https://stackoverflow.com/questions/41566950/how-to-make-df-to-sql-create-varchar2-object
 #dtyp = {c:types.VARCHAR(df[c].str.len().max()) for c in df.columns[df.dtypes == 'object'].tolist()}
 
-#print(df)
+print(df.head(5))
 #print(df.values.tolist())
 
 # put data from xls to DEMIPT2.PANA_XLS table
 # delete data if exist
 sql_str = "delete from DEMIPT2.PANA_XLS"
-print("\ndeleting from  DEMIPT2.PANA_XLS...")
+print("\ndeleting from table DEMIPT2.PANA_XLS...")
 try:
     curs.execute(sql_str)
 except Exception as e:
@@ -88,7 +89,7 @@ finally:
 
 # insert data from DataFrame
 sql_str = "insert into DEMIPT2.PANA_XLS (PAT_CODE, AN_CODE, VAL, SIMPL) values (?,?,?,?)"
-print("\ninserting to  DEMIPT2.PANA_XLS...")
+print("\nputting dataframe to table DEMIPT2.PANA_XLS...")
 try:
     curs.executemany(sql_str, df.values.tolist())
 except Exception as e:
@@ -180,14 +181,14 @@ WHERE tr.id in (
 )
 WHERE res <> 'Норма'
 """
-print("\ngetting data by query...")
+print("\nExecuting query and getting result dataframe...")
 try:
     curs.execute(sql_str)
 except Exception as e:
     print("Error getting data:{}".format(e))
 else:
     df = pd.DataFrame(curs.fetchall(), columns=[x[0] for x in curs.description])
-    print("Show dataframe:\n")
+    print("Show result dataframe:\n")
     print(df)
     print("\nwrite dataframe to {}...".format(task7file))
     df.to_excel(task7file, sheet_name='task7', header=True, index=False)
@@ -196,7 +197,7 @@ else:
 # insert data from query (task7 additional)
 # delete data if exist
 sql_str = "delete from DEMIPT2.PANA_MEDAN_DECODE_RES"
-print("\ndeleting from  DEMIPT2.PANA_MEDAN_DECODE_RES...")
+print("\ndeleting from table DEMIPT2.PANA_MEDAN_DECODE_RES...")
 try:
     curs.execute(sql_str)
 except Exception as e:
@@ -256,7 +257,7 @@ FROM
 ORDER BY client
 ) res
 """
-print("\ninserting to  PANA_MEDAN_DECODE_RES...")
+print("\ninserting to table DEMIPT2.PANA_MEDAN_DECODE_RES...")
 try:
     curs.execute(sql_str)
 except Exception as e:
