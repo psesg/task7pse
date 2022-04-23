@@ -5,17 +5,19 @@ import pandas as pd
 import numpy as np
 import jaydebeapi
 from sqlalchemy import types
+import codecs
 
 pd.set_option("display.max_columns", 200)
 
 def get_sql_str(filename):
     sqlstr = ''
     try:
-        f = open(filename)
+        f = codecs.open(filename, 'r', 'cp1251')
     except FileNotFoundError:
         print("File does not exist '{}'".format(filename))
     else:
         sqlstr = f.read()
+        print("read sql script: '{}'".format(filename))
         f.close()
     finally:
         return sqlstr
