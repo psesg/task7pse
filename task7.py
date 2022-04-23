@@ -34,8 +34,8 @@ print("Common info:\nOS name:\t{}\nplatform:\t{}\nversion:\t{}\nrelease:\t{}\nPy
 if plat == "Linux":
     jarFile = '/home/demipt2/ojdbc8.jar'
     xlsFile = '/home/demipt2/medicine.xlsx'
-    sqlscrFile1 = '/home/demipt2/3.task7_result.sql'
-    sqlscrFile2 = '/home/demipt2/4.task7_result.sql'
+    sqlscrFile1 = '/home/demipt2/task7_1.sql'
+    sqlscrFile2 = '/home/demipt2/task7_2.sql'
     # file in my PANA dir
     task7file = '/home/demipt2/pana/pana_task7_out.xlsx'
     print("Unix-specific info: {}".format(platform.linux_distribution()))
@@ -44,8 +44,8 @@ if plat == "Windows":
     # file in current dir
     xlsFile = 'medicine.xlsx'
     task7file = 'pana_task7_out.xlsx'
-    sqlscrFile1 = '3.task7_result.sql'
-    sqlscrFile2 = '4.task7_result.sql'
+    sqlscrFile1 = 'task7_1.sql'
+    sqlscrFile2 = 'task7_2.sql'
 dirver = 'oracle.jdbc.driver.OracleDriver'
 addr_ = 'de-oracle.chronosavant.ru' + ':' + '1521' + '/' + 'deoracle'
 url = 'jdbc:oracle:thin:@' + addr_
