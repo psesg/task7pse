@@ -8,6 +8,18 @@ from sqlalchemy import types
 
 pd.set_option("display.max_columns", 200)
 
+def get_sql_str(filename):
+    sqlstr = ''
+    try:
+        f = open(filename)
+    except FileNotFoundError:
+        print("File does not exist '{}'".format(filename))
+    else:
+        sqlstr = f.read()
+        f.close()
+    finally:
+        return sqlstr
+
 plat = platform.system()
 print("Common info:\nOS name:\t{}\nplatform:\t{}\nversion:\t{}\nrelease:\t{}\nPython v.:\t{}.{}.{}".format(
     os.name,
@@ -22,6 +34,8 @@ print("Common info:\nOS name:\t{}\nplatform:\t{}\nversion:\t{}\nrelease:\t{}\nPy
 if plat == "Linux":
     jarFile = '/home/demipt2/ojdbc8.jar'
     xlsFile = '/home/demipt2/medicine.xlsx'
+    sqlscrFile1 = '/home/demipt2/3.task7_result.sql'
+    sqlscrFile2 = '/home/demipt2/4.task7_result.sql'
     # file in my PANA dir
     task7file = '/home/demipt2/pana/pana_task7_out.xlsx'
     print("Unix-specific info: {}".format(platform.linux_distribution()))
@@ -30,6 +44,8 @@ if plat == "Windows":
     # file in current dir
     xlsFile = 'medicine.xlsx'
     task7file = 'pana_task7_out.xlsx'
+    sqlscrFile1 = '3.task7_result.sql'
+    sqlscrFile2 = '4.task7_result.sql'
 dirver = 'oracle.jdbc.driver.OracleDriver'
 addr_ = 'de-oracle.chronosavant.ru' + ':' + '1521' + '/' + 'deoracle'
 url = 'jdbc:oracle:thin:@' + addr_
@@ -99,88 +115,9 @@ else:
 finally:
     print("inserted {} rows".format(int(-curs.rowcount/2)))
 
+sql_str = get_sql_str(sqlscrFile1)
+#print(sql_str)
 
-
-sql_str = """
-SELECT * FROM
-(
-SELECT 
-    --tr.id,
-    tr.phone,
-    tr.name client,
-    a.name an_name,
-    case
-        when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 'Положительный'
-        when tr.val is not null and  tr.val < a.min_value then 'Понижен' 
-        when tr.val is not null and  tr.val > a.max_value then 'Повышен' 
-        else 'Норма'
-    end  as res
-FROM
-    (SELECT 
-        t.id,
-        t.name,
-        t.phone,
-        r.pat_code,
-        r.an_code,
-        r.val,
-        r.simpl
-    FROM DE.MED_NAMES t
-    LEFT JOIN DEMIPT2.PANA_XLS r
-        ON t.id = r.pat_code
-    ORDER BY t.id
-    ) tr
-    LEFT JOIN DE.MED_AN_NAME a
-        ON tr.an_code = a.code
-WHERE tr.id in (
---
-    SELECT 
-        resul.id
-    FROM
-    (
-    SELECT 
-        tr.id,
-        tr.phone,
-        tr.name client,
-        tr.an_code,
-        a.name an_name,
-        case
-            when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 'Положительный'
-            when tr.val is not null and  tr.val < a.min_value then 'Понижен' 
-            when tr.val is not null and  tr.val > a.max_value then 'Повышен' 
-            else 'Норма'
-        end  as res,
-        
-        case
-            when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 1
-            when tr.val is not null and  tr.val < a.min_value then 1 
-            when tr.val is not null and  tr.val > a.max_value then 1 
-            else 0
-        end  as kol
-        
-    FROM
-        (SELECT 
-            t.id,
-            t.name,
-            t.phone,
-            r.pat_code,
-            r.an_code,
-            r.val,
-            r.simpl
-        FROM DE.MED_NAMES t
-        LEFT JOIN DEMIPT2.PANA_XLS r
-            ON t.id = r.pat_code
-        ORDER BY t.id
-        ) tr
-        LEFT JOIN DE.MED_AN_NAME a
-            ON tr.an_code = a.code
-        ) resul
-    GROUP BY resul.id
-    HAVING sum(resul.kol) >= 2
---
-    )
-)
-WHERE res <> 'Норма'
-"""
 print("\nExecuting query and getting result dataframe...")
 try:
     curs.execute(sql_str)
@@ -207,56 +144,9 @@ else:
 finally:
     print("deleted {} rows".format(curs.rowcount))
 
-sql_str = """
-INSERT INTO DEMIPT2.PANA_MEDAN_DECODE_RES
-SELECT 
-    res.id,
-    res.phone,
-    res.client,
-    res.an_code,
-    res.an_name,
-    res.res
-FROM
-(
-SELECT
-    tr.id,
-    tr.phone,
-    tr.name client,
-    tr.an_code,
-    a.name an_name,
-    case
-        when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 'Положительный'
-        when tr.val is not null and  tr.val < a.min_value then 'Понижен' 
-        when tr.val is not null and  tr.val > a.max_value then 'Повышен' 
-        else 'Норма'
-    end  as res,
-    
-    case
-        when a.simple is not null and  tr.simpl is not null and  a.simple = 'Y' and  tr.simpl = 'Y' then 1
-        when tr.val is not null and  tr.val < a.min_value then 1 
-        when tr.val is not null and  tr.val > a.max_value then 1 
-        else 0
-    end  as kol
-    
-FROM
-    (SELECT 
-        t.id,
-        t.name,
-        t.phone,
-        r.pat_code,
-        r.an_code,
-        r.val,
-        r.simpl
-    FROM DE.MED_NAMES t
-    LEFT JOIN DEMIPT2.PANA_XLS r
-    ON t.id = r.pat_code
-    ORDER BY t.id
-    ) tr
-    LEFT JOIN DE.MED_AN_NAME a
-    ON tr.an_code = a.code
-ORDER BY client
-) res
-"""
+sql_str = get_sql_str(sqlscrFile2)
+#print(sql_str)
+
 print("\ninserting to table DEMIPT2.PANA_MEDAN_DECODE_RES...")
 try:
     curs.execute(sql_str)
